@@ -1,6 +1,6 @@
 soundblocks_music={} --This is needed because you cannot save the handle of the sound in param2 of the node
 
-minetest.register_node("soundblocks:musicblock", {
+minetest.register_node("audioguide:musicblock", {
     description = "Music Block",
     tile_images = {"default_wood.png"},
     groups = {snappy=2,choppy=2,oddly_breakable_by_hand=2},
@@ -36,7 +36,7 @@ end
 
 --This is the actual code that plays the sound:
 minetest.register_on_punchnode(function(pos, node, puncher)
-    if node.name=="soundblocks:musicblock" then
+    if node.name=="audioguide:musicblock" then
         if soundblocks_get_handle(pos)==0 then
             local handle=0
             handle = minetest.sound_play("soundblocks_music", { --name of sound, file name extension is .ogg
