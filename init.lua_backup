@@ -50,18 +50,3 @@ minetest.register_on_punchnode(function(pos, node, puncher)
         end
     end
 end)
-
-    © 2018 GitHub, Inc.
-    Terms
-    Privacy
-    Security
-    Status
-    Help
-
-    Contact GitHub
-    Pricing
-    API
-    Training
-    Blog
-    About
-
