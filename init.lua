@@ -2,7 +2,7 @@ soundblocks_music={} --This is needed because you cannot save the handle of the 
 
 minetest.register_node("audioguide:musicblock", {
     description = "Music Block",
-    tile_images = {"default_wood.png"},
+    tiles = {"audioguide_audiostone.png"},
     groups = {snappy=2,choppy=2,oddly_breakable_by_hand=2},
 })
 
