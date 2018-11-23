@@ -1,52 +1,26 @@
-soundblocks_music={} --This is needed because you cannot save the handle of the sound in param2 of the node
+soundblocks_lk1=0
+soundblocks_lk1_onoff=0 
 
-minetest.register_node("audioguide:musicblock", {
-    description = "Music Block",
-    tiles = {"audioguide_audiostone.png"},
+minetest.register_node("audioguide:audioguideblocklk1", {
+    description = "Audioguide Block Lk1",
+    tiles = {"audioguide_lk1z.png"},
     groups = {snappy=2,choppy=2,oddly_breakable_by_hand=2},
 })
 
 
---Some functions that you need to save the handle in soundblocks_music:
-function soundblocks_get_handle(pos)
-    local i=0
-    while soundblocks_music[i]~=nil do
-        if soundblocks_music[i].pos.x==pos.x and soundblocks_music[i].pos.y==pos.y and soundblocks_music[i].pos.z==pos.z then
-            return soundblocks_music[i].handle
-        end
-        i=i+1
-    end 
-    return 0
-end
-
-function soundblocks_set_handle(pos, handle)
-    local i=0
-    while soundblocks_music[i]~=nil do
-        if soundblocks_music[i].pos.x==pos.x and soundblocks_music[i].pos.y==pos.y and soundblocks_music[i].pos.z==pos.z then
-            soundblocks_music[i].handle=handle
-            return
-        end
-        i=i+1
-    end
-    soundblocks_music[i]={}
-    soundblocks_music[i].pos=pos
-    soundblocks_music[i].handle=handle
-end
-
 
 --This is the actual code that plays the sound:
 minetest.register_on_punchnode(function(pos, node, puncher)
-    if node.name=="audioguide:musicblock" then
-        if soundblocks_get_handle(pos)==0 then
-            local handle=0
-            handle = minetest.sound_play("soundblocks_music", { --name of sound, file name extension is .ogg
+    if node.name=="audioguide:audioguideblocklk1" then
+        if soundblocks_lk1_onoff==0 then
+            soundblocks_lk1_onoff=1	
+            soundblocks_lk1 = minetest.sound_play("audioguide_lk1zacharias", { --name of sound, file name extension is .ogg
             pos = pos, --pos where sound comes from
             gain = 1.0,
             max_hear_distance = 32,}) --sound gets lower the farer you get away from the jukebox
-            soundblocks_set_handle(pos, handle)
         else
-            minetest.sound_stop(soundblocks_get_handle(pos))
-            soundblocks_set_handle(pos, 0)
+            minetest.sound_stop(soundblocks_lk1)
+            soundblocks_lk1_onoff=0
         end
     end
 end)
