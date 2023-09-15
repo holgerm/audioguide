@@ -1,29 +1,34 @@
+audionode = {}
+
 soundblocks = 0
 soundblocks_onoff = 0
 
-
-function get_formspec()
-    local text = "Pick an audiofile for this node:"
-
+function audionode.get_fileslist() 
     local files = minetest.get_dir_list(minetest.get_modpath("audionode") .. '/sounds', false)
-    local filestext = ""
+    local filestable = {}
     local first_file = true
     for i = 1, #files do
         if files[i]:sub(-4) == ".ogg" then
             if not first_file then
-                filestext = filestext .. ","
+                table.insert(filestable, ",")
             end
-            filestext = filestext .. files[i]
+            table.insert(filestable, files[i])
             first_file = false
         end
     end
 
+    return table.concat(filestable, "")
+end
 
+
+function audionode.get_formspec()
     local formspec = {
         "formspec_version[4]",
-        "size[8,5]",
-        "label[0.375,0.5;", minetest.formspec_escape(text), "]",
-        "textlist[0.375,0.75;7,4;mydir_list;", filestext, ";0;false]"
+        "size[8,6]",
+        "label[0.55,0.5;", minetest.formspec_escape("Pick an audiofile for this node:"), "]",
+        "textlist[0.5,0.75;7,4;mydir_list;", audionode.get_fileslist(), ";0;false]",
+        "button_exit[0.5,5;2,0.5;adioCanceled;Cancel]",
+        "button_exit[6.5,5;1,0.5;audioSelected;Ok]"
     }
 
     return table.concat(formspec, "")
@@ -37,7 +42,7 @@ minetest.register_node("audionode:audio_blue", {
     --oggEnding = ".ogg"
     --mp3Ending = ".mp3"
     on_rightclick = function(pos, node, player, itemstack, pointed_thing)
-        local formspec =  get_formspec()
+        local formspec =  audionode.get_formspec()
         print(formspec)
 
         minetest.show_formspec(
