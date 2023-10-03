@@ -1,23 +1,60 @@
 local audionode = {}
 
-local soundblocks = 0
-local soundblocks_onoff = 0
+minetest.register_privilege("audionode", {
+	description = "Can edit audionodes",
+	give_to_singleplayer = false
+})
 
-function table.tostring(o)
+function audionode.tabletostring(o)
     if type(o) == 'table' then
        local s = '{ '
        for k,v in pairs(o) do
-          if type(k) ~= 'number' then k = '"'..k..'"' end
-          s = s .. '['..k..'] = ' .. table.tostring(v) .. ','
+          if type(k) ~= 'number' then
+            k = '"'..k..'"'
+          else
+            k = '"'..tostring(k)..'"'
+          end
+          s = s .. '['..k..'] = ' .. audionode.tabletostring(v) .. ','
        end
        return s .. '} '
     else
        return tostring(o)
     end
- end
- 
+end
 
-function audionode.get_filestable() 
+local storage = minetest.get_mod_storage()
+
+function audionode.play(pos, player)
+    local audiostring = storage:get_string(tostring(pos))
+    if not audiostring or audiostring == '' then
+        minetest.chat_send_player(
+            player:get_player_name(),
+            "There is no audiofile at this position.")
+        return
+    end
+
+    local audio = minetest.deserialize(audiostring)
+    if not audio.file then
+        minetest.chat_send_player(
+            player:get_player_name(),
+            "There is a problem with the audiofile at this position.")
+        return
+    end
+
+    local sound = minetest.sound_play(
+        audio.file,
+        {
+            pos = pos,
+            gain = 1.0,
+            max_hear_distance = 32,
+            loop = false,
+            to_player = player,
+        }
+    )
+    return sound
+end
+
+function audionode.get_filestable()
     local files = minetest.get_dir_list(minetest.get_modpath("audionode") .. '/sounds', false)
     local filestable = {}
     for i = 1, #files do
@@ -37,125 +74,106 @@ function audionode.get_formspec()
         "size[8,6]",
         "label[0.55,0.5;", minetest.formspec_escape("Pick an audiofile for this node:"), "]",
         "textlist[0.5,0.75;7,4;audionodeFilesList;", filesListText, ";0;false]",
-        "button_exit[0.5,5;1.5,0.5;audioCancel;Cancel]",
-        "button_exit[3.375,5;1.5,0.5;audioStop;Stop]",
+        "button_exit[0.5,5;1.5,0.5;audioDelete;Delete]",
+        "button[3.375,5;1.5,0.5;audioListen;Listen]",
         "button_exit[6,5;1.5,0.5;audioSet;Set]"
     }
 
     return table.concat(formspec, "")
 end
 
-audionode.state = {}
-
-function audionode.pos2key(pos)
-    return pos.x .. "-" .. pos.y .. "-" .. pos.z
-end
-
--- we store for each audionode:
---      with the position key (x-y-z):
---          audiofile: the filename of the .ogg file
---          on: 1 running, 0 stopped
---          sound: the result of the sound_play() call which can be used to stop playback
-
-function audionode.playSound(pos)
-    local posString = tostring(pos)
-    if audionode.state[posString] then
-        if audionode.state[posString].on == 0 then
-            audionode.state[posString].on = 1
-
-            local audiofilewithoutsuffix = string.sub(audionode.state[posString].audiofile, 1, -5)
-            audionode.state[posString].sound = minetest.sound_play(audiofilewithoutsuffix, {
-                pos = pos, --pos where sound comes from
-                gain = 1.0,
-                max_hear_distance = 32,
-                loop = true,})
-        else
-            minetest.sound_stop(audionode.state[posString].sound)
-            audionode.state[posString].on = 0
-        end
-    end
-end
-
-
 minetest.register_node("audionode:audio_blue", {
     description = "Audionode Block",
     tiles = {"audio_blue.png"},
     groups = {snappy = 2, choppy = 2, oddly_breakable_by_hand = 2},
     on_rightclick = function(pos, node, player, itemstack, pointed_thing)
-        local formspec =  audionode.get_formspec()
-        if audionode.playerPos == nil then audionode.playerPos = {} end
-        audionode.playerPos[tostring(player)] = pos 
-
-        minetest.show_formspec(
-            player:get_player_name(),
-            "audionode:selection",
-            formspec)
+        -- check player priv for audionode editing:
+        if minetest.check_player_privs(player, {audionode=true}) then
+            local formspec =  audionode.get_formspec()
+            if audionode.playerPos == nil then audionode.playerPos = {} end
+            audionode.playerPos[tostring(player)] = pos
+            minetest.show_formspec(
+                player:get_player_name(),
+                "audionode:selection",
+                formspec)
+        else
+            audionode.play(pos, player)
+        end
     end
 })
 
-minetest.register_on_player_receive_fields(function(player, formname, fields)
-    if formname ~= "audionode:selection" then
-        return
-    end
+--[[ 
+    How it is supposed to work:
+    
+    When the user clicks on an audio block, the form will be shown. The users position is stored temporarily in
+    audionode.playerPos[<playername>]. We use the raw data string as we get it as argument from the on_rightclick 
+    callback.
 
-    if not audionode.playerPos[tostring(player)] then
-        return
-    end
+    Next the user selects an audio file within the form. Now we store the name of the selected file in 
+    audionode.selectedfile[pos], i.e. we temporarily save the filename under the pos as key. In case multiple users
+    make different selections for the same node, the last selection overwrites all previous. (Maybe later we could 
+    show that somehow to the users, or even block the form if someone is already editing the sound at a node.)
 
-    print("fields:")
-    print(table.tostring(fields))
+    When the user clicks on the Cancel button, the form is closed and nothing is changed in permanent store.
 
-    if fields.audionodeFilesList then
-        -- audio file in list selected: we store the file name at this positons metadata:
+    When the user clicks on the Set button (and an audio files is selected), the selected audio file starts to play
+    and is saved permanently as the following data structure in the database:
+
+    {
+        pos // the position of the audionode
+        file // the filename without extension
+    }
+
+ ]]
+
+
+minetest.register_on_player_receive_fields(
+    function(player, formname, fields)
+        if formname ~= "audionode:selection" then
+            return
+        end
+
         local pos = audionode.playerPos[tostring(player)]
-        if audionode.selectedfile == nil then audionode.selectedfile = {} end
-        local i = 0 + string.sub (fields.audionodeFilesList, 5)
-        audionode.selectedfile[tostring(pos)] =
-            string.sub(audionode.get_filestable()[i], 1, -5)
-        print("Selected file " .. audionode.selectedfile[tostring(pos)] .. " at position " .. tostring(pos))
-    end
 
-    if fields.audioSet then
-        -- button "set" pressed: we set the file at the local state metadata and strt playing it:
-        local pos = audionode.playerPos[tostring(player)]
+        if not pos then
+            minetest.chat_send_player(
+                player:get_player_name(), 
+                "Error on audionode mod: Pplayer position was not stored. Contact the developer please.")
+            return
+        end
 
-        if audionode.selectedfile[tostring(pos)] then
-            -- if we have selected a file before: we set the file at the local state metadata and start playing it:
-            if audionode.state == nil then audionode.state = {} end
-            if audionode.state[tostring(pos)] then
-                -- eventually playing sound at this position will be stopped first:
-                if (audionode.state[tostring(pos)].sound) then
-                    minetest.sound_stop(audionode.state[tostring(pos)].sound)
-                    print("Stopped playing audio file " .. audionode.state[tostring(pos)].audiofile)
-                end
+        if fields.audionodeFilesList then
+            -- audio file in list selected: we store the file name at this positons metadata:
+            if audionode.selectedfile == nil then audionode.selectedfile = {} end
+            local i = 0 + string.sub (fields.audionodeFilesList, 5)
+            audionode.selectedfile[tostring(pos)] =
+                string.sub(audionode.get_filestable()[i], 1, -5)
+        end
+
+        if fields.audioSet then
+            if not audionode.selectedfile or not audionode.selectedfile[tostring(pos)] then
+                minetest.chat_send_player(
+                    player:get_player_name(), 
+                    "You need to select an audio file in order to set it at this audionode!")
+                return
             end
 
-            audionode.state[tostring(pos)] = {}
-            audionode.state[tostring(pos)].audiofile = audionode.selectedfile[tostring(pos)]
-            audionode.state[tostring(pos)].sound = minetest.sound_play(
-                audionode.state[tostring(pos)].audiofile,
-                {
-                    pos = pos, --pos where sound comes from
-                    gain = 1.0,
-                    max_hear_distance = 32,
-                    loop = true,
-                }
-            )
-            print("Started to play audio file " .. audionode.state[tostring(pos)].audiofile ..
-            " at position " .. tostring(pos))
-        else
-            print("Cannot play - No audio file selected at position " .. tostring(pos))
+            local audioValue = {}
+            audioValue.pos = pos
+            audioValue.file = audionode.selectedfile[tostring(pos)]
+            local valueString = minetest.serialize(audioValue)
+            storage:set_string(tostring(pos), valueString)
+            minetest.chat_send_player(
+                player:get_player_name(), 
+                "Audiofile '" .. audioValue.file .. "' set for play at this audionode.")
         end
-    end
 
-    if fields.audioStop then
-        local pos = audionode.playerPos[tostring(player)]
-        if audionode.state[tostring(pos)] and audionode.state[tostring(pos)].sound then
-            minetest.sound_stop(audionode.state[tostring(pos)].sound)
-            print("Stopped playing audio file " .. audionode.state[tostring(pos)].audiofile ..
-                " at position " .. tostring(pos))
-            audionode.state[tostring(pos)].audiofile = nil
+        if fields.audioDelete then
+            storage:set_string(tostring(pos), nil)
         end
-        print("Cannot play - No audio file set at position " .. tostring(pos))
+
+        if fields.audioListen then
+            audionode.play(pos, player)
+        end
     end
-end)
+)
