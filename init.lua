@@ -67,13 +67,13 @@ function audionode.get_filestable()
 end
 
 
-function audionode.get_formspec()
+function audionode.get_formspec(indexOfFile)
     local filesListText = table.concat(audionode.get_filestable(), ",")
     local formspec = {
         "formspec_version[4]",
         "size[8,6]",
         "label[0.55,0.5;", minetest.formspec_escape("Pick an audiofile for this node:"), "]",
-        "textlist[0.5,0.75;7,4;audionodeFilesList;", filesListText, ";0;false]",
+        "textlist[0.5,0.75;7,4;audionodeFilesList;", filesListText, ";", tostring(indexOfFile), ";false]",
         "button_exit[0.5,5;1.5,0.5;audioDelete;Delete]",
         "button[3.375,5;1.5,0.5;audioListen;Listen]",
         "button_exit[6,5;1.5,0.5;audioSet;Set]"
@@ -89,7 +89,22 @@ minetest.register_node("audionode:audio_blue", {
     on_rightclick = function(pos, node, player, itemstack, pointed_thing)
         -- check player priv for audionode editing:
         if minetest.check_player_privs(player, {audionode=true}) then
-            local formspec =  audionode.get_formspec()
+            local indexOfFile = 0
+            local audiostring = storage:get_string(tostring(pos))
+            if audiostring then
+                local audio = minetest.deserialize(audiostring)
+                if audio then
+                    local files = minetest.get_dir_list(minetest.get_modpath("audionode") .. '/sounds', false)
+                    for i = 1, #files do
+                        if files[i]:sub(1,-5) == audio.file then
+                            indexOfFile = i
+                            break
+                        end
+                    end
+                end
+            end
+
+            local formspec =  audionode.get_formspec(indexOfFile)
             if audionode.playerPos == nil then audionode.playerPos = {} end
             audionode.playerPos[tostring(player)] = pos
             minetest.show_formspec(
