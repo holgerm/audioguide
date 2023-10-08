@@ -1,4 +1,6 @@
-local audionode = {}
+local audionode = {
+    playing = {}
+}
 
 minetest.register_privilege("audionode", {
 	description = "Can edit audionodes",
@@ -94,7 +96,8 @@ minetest.register_node("audionode:audio_blue", {
             if audiostring then
                 local audio = minetest.deserialize(audiostring)
                 if audio then
-                    local files = minetest.get_dir_list(minetest.get_modpath("audionode") .. '/sounds', false)
+                    local files = audionode.get_filestable()
+                        --minetest.get_dir_list(minetest.get_modpath("audionode") .. '/sounds', false)
                     for i = 1, #files do
                         if files[i]:sub(1,-5) == audio.file then
                             indexOfFile = i
