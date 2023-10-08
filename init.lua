@@ -1,4 +1,5 @@
 local audionode = {
+    playerPos = {},
     playing = {}
 }
 
@@ -22,6 +23,10 @@ function audionode.tabletostring(o)
     else
        return tostring(o)
     end
+end
+
+function audionode.getPlayKey(pos, player)
+    return tostring(pos) .. "-" .. player:get_player_name()
 end
 
 local storage = minetest.get_mod_storage()
@@ -50,10 +55,10 @@ function audionode.play(pos, player)
             gain = 1.0,
             max_hear_distance = 32,
             loop = false,
-            to_player = player,
+            to_player = player:get_player_name(),
         }
     )
-    return sound
+    audionode.playing[audionode.getPlayKey(pos, player)] = sound
 end
 
 function audionode.get_filestable()
@@ -115,7 +120,15 @@ minetest.register_node("audionode:audio_blue", {
                 "audionode:selection",
                 formspec)
         else
-            audionode.play(pos, player)
+            local sound = audionode.playing[audionode.getPlayKey(pos, player)]
+            if sound then
+                print("SOUND STOP: " .. sound)
+                minetest.sound_stop(sound)
+                audionode.playing[audionode.getPlayKey(pos, player)] = nil
+            else
+                print("SOUND PLAY: ")
+                audionode.play(pos, player)
+            end
         end
     end
 })
