@@ -93,7 +93,7 @@ minetest.register_node("audionode:audio_blue", {
     description = "Audionode Block",
     tiles = {"audio_blue.png"},
     groups = {snappy = 2, choppy = 2, oddly_breakable_by_hand = 2},
-    on_rightclick = function(pos, node, player, itemstack, pointed_thing)
+    on_rightclick = function(pos, _node, player, _itemstack, _pointed_thing)
         -- check player priv for audionode editing:
         if minetest.check_player_privs(player, {audionode=true}) then
             local indexOfFile = 0
