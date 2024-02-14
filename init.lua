@@ -133,9 +133,9 @@ minetest.register_node("audionode:audio_blue", {
     end
 })
 
---[[ 
+--[[
     How it is supposed to work:
-    
+
     When the user clicks on an audio block, the form will be shown. The users position is stored temporarily in
     audionode.playerPos[<playername>]. We use the raw data string as we get it as argument from the on_rightclick 
     callback.
@@ -154,7 +154,6 @@ minetest.register_node("audionode:audio_blue", {
         pos // the position of the audionode
         file // the filename without extension
     }
-
  ]]
 
 
