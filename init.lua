@@ -89,72 +89,55 @@ function audionode.get_formspec(indexOfFile)
     return table.concat(formspec, "")
 end
 
+local function on_click(pos, _node, player, _itemstack, _pointed_thing) 
+        -- check player priv for audionode editing:    
+    if minetest.check_player_privs(player, {audionode=true}) then
+        local indexOfFile = 0
+        local audiostring = storage:get_string(tostring(pos))
+        if audiostring then
+            local audio = minetest.deserialize(audiostring)
+            if audio then
+                local files = audionode.get_filestable()
+                    --minetest.get_dir_list(minetest.get_modpath("audionode") .. '/sounds', false)
+                for i = 1, #files do
+                    if files[i]:sub(1,-5) == audio.file then
+                        indexOfFile = i
+                        break
+                    end
+                end
+            end
+        end
+
+        local formspec =  audionode.get_formspec(indexOfFile)
+        if audionode.playerPos == nil then audionode.playerPos = {} end
+        audionode.playerPos[tostring(player)] = pos
+
+        print("playing: " .. (audionode.playing[audionode.getPlayKey(pos, player)] or "nil"))
+
+        minetest.show_formspec(
+            player:get_player_name(),
+            "audionode:selection",
+            formspec)
+    else
+        local sound = audionode.playing[audionode.getPlayKey(pos, player)]
+        if sound then
+            print("SOUND STOP: " .. sound)
+            minetest.sound_stop(sound)
+            audionode.playing[audionode.getPlayKey(pos, player)] = nil
+        else
+            print("SOUND PLAY: ")
+            audionode.play(pos, player)
+        end
+    end
+end
+
 minetest.register_node("audionode:audio_blue", {
     description = "Audionode Block",
     tiles = {"audio_blue.png"},
     groups = {snappy = 2, choppy = 2, oddly_breakable_by_hand = 2},
-    on_rightclick = function(pos, _node, player, _itemstack, _pointed_thing)
-        -- check player priv for audionode editing:
-        if minetest.check_player_privs(player, {audionode=true}) then
-            local indexOfFile = 0
-            local audiostring = storage:get_string(tostring(pos))
-            if audiostring then
-                local audio = minetest.deserialize(audiostring)
-                if audio then
-                    local files = audionode.get_filestable()
-                        --minetest.get_dir_list(minetest.get_modpath("audionode") .. '/sounds', false)
-                    for i = 1, #files do
-                        if files[i]:sub(1,-5) == audio.file then
-                            indexOfFile = i
-                            break
-                        end
-                    end
-                end
-            end
-
-            local formspec =  audionode.get_formspec(indexOfFile)
-            if audionode.playerPos == nil then audionode.playerPos = {} end
-            audionode.playerPos[tostring(player)] = pos
-            minetest.show_formspec(
-                player:get_player_name(),
-                "audionode:selection",
-                formspec)
-        else
-            local sound = audionode.playing[audionode.getPlayKey(pos, player)]
-            if sound then
-                print("SOUND STOP: " .. sound)
-                minetest.sound_stop(sound)
-                audionode.playing[audionode.getPlayKey(pos, player)] = nil
-            else
-                print("SOUND PLAY: ")
-                audionode.play(pos, player)
-            end
-        end
-    end
+    on_rightclick = on_click,
+    on_punch = on_click,
 })
-
---[[
-    How it is supposed to work:
-
-    When the user clicks on an audio block, the form will be shown. The users position is stored temporarily in
-    audionode.playerPos[<playername>]. We use the raw data string as we get it as argument from the on_rightclick 
-    callback.
-
-    Next the user selects an audio file within the form. Now we store the name of the selected file in 
-    audionode.selectedfile[pos], i.e. we temporarily save the filename under the pos as key. In case multiple users
-    make different selections for the same node, the last selection overwrites all previous. (Maybe later we could 
-    show that somehow to the users, or even block the form if someone is already editing the sound at a node.)
-
-    When the user clicks on the Cancel button, the form is closed and nothing is changed in permanent store.
-
-    When the user clicks on the Set button (and an audio files is selected), the selected audio file starts to play
-    and is saved permanently as the following data structure in the database:
-
-    {
-        pos // the position of the audionode
-        file // the filename without extension
-    }
- ]]
 
 
 minetest.register_on_player_receive_fields(
